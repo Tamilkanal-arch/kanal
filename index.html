@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEST Kuwait — Leave & Attendance Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand-section">
+        <img src="assets/logo.png" alt="Company Logo" class="brand-logo-img">
+        <div class="brand-title">
+          <h1>Leave & Attendance Management System</h1>
+          <p>NEST Kuwait Operations &bull; Kuwait Workweek (Fri Holiday)</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Accrual As Of Date Control -->
+        <div class="as-of-control" title="Calculation date for Accrued Leave & Balances">
+          <label for="asOfDateInput"><strong>As Of:</strong></label>
+          <input type="date" id="asOfDateInput" value="2026-09-17">
+        </div>
+
+        <!-- Master Excel Export Button -->
+        <button class="btn btn-excel" onclick="exportFullExcelWorkbook()" title="Export complete multi-tab Excel workbook (.xlsx)">
+          <span>📗</span> <span>Export to Excel (.xlsx)</span>
+        </button>
+
+        <!-- Add Employee -->
+        <button class="btn btn-secondary" onclick="openAddEmployeeModal()">
+          <span>+</span> <span>New Employee</span>
+        </button>
+
+        <!-- Data Controls -->
+        <button class="btn btn-secondary" onclick="exportAllData()" title="Backup complete database to JSON">
+          <span>⬇</span> <span>Backup</span>
+        </button>
+        <button class="btn btn-secondary" onclick="triggerImportData()" title="Restore database from JSON backup">
+          <span>⬆</span> <span>Restore</span>
+        </button>
+        <button class="btn btn-secondary" onclick="resetToExcelBaseline()" title="Reset data back to initial Excel state">
+          <span>↺</span> <span>Reset Baseline</span>
+        </button>
+
+        <!-- Admin Role Toggle -->
+        <button id="adminToggleBtn" class="btn btn-admin-locked" title="Toggle Admin Mode">
+          <span>🔒</span> <span>Read-Only Views</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <div class="nav-tab active" data-tab="tab-calendar">
+        <span>📅</span> <span>Calendar Entry</span>
+      </div>
+      <div class="nav-tab" data-tab="tab-register">
+        <span>📋</span> <span>Leave Register</span>
+      </div>
+      <div class="nav-tab" data-tab="tab-master1">
+        <span>📊</span> <span>Master Sheet (Calendar)</span>
+        <span class="tab-badge">Calculated</span>
+      </div>
+      <div class="nav-tab" data-tab="tab-master2">
+        <span>📈</span> <span>Master Sheet 2 (Balances & Accruals)</span>
+        <span class="tab-badge">Calculated</span>
+      </div>
+      <div class="nav-tab" data-tab="tab-instructions">
+        <span>ℹ️</span> <span>Instructions & Rules</span>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="app-main">
+
+    <!-- ==========================================
+         VIEW 1: CALENDAR DATA ENTRY
+         ========================================== -->
+    <section id="tab-calendar" class="view-panel active">
+      <div class="toolbar-card">
+        <div class="toolbar-left">
+          <div class="search-input">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchCalInput" placeholder="Filter employee or designation...">
+          </div>
+
+          <!-- Month Jump Buttons -->
+          <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(0)">Jan</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(1)">Feb</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(2)">Mar</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(3)">Apr</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(4)">May</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(5)">Jun</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(6)">Jul</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(7)">Aug</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(8)">Sep</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(9)">Oct</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(10)">Nov</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="jumpToMonth(11)">Dec</button>
+          </div>
+        </div>
+
+        <div class="view-legend">
+          <span class="legend-chip chip-p"><strong>P</strong> Paid</span>
+          <span class="legend-chip chip-m"><strong>M</strong> Medical</span>
+          <span class="legend-chip chip-u"><strong>U</strong> Unpaid</span>
+          <span class="legend-chip chip-o"><strong>O</strong> Other</span>
+          <span class="legend-chip chip-fri" title="Friday is a company holiday in Kuwait. Leave marked on Friday is excluded from all totals."><strong>Fri</strong> Holiday (Excluded)</span>
+        </div>
+      </div>
+
+      <div class="table-scroll-container">
+        <table class="data-table">
+          <thead>
+            <tr id="calHeaderRow1"></tr>
+            <tr id="calHeaderRow2"></tr>
+            <tr id="calHeaderRow3"></tr>
+          </thead>
+          <tbody id="calTableBody"></tbody>
+        </table>
+      </div>
+      <p style="margin-top: 0.5rem; font-size: 0.775rem; color: var(--text-muted);">
+        Tip: Click any day cell to cycle leave types, or click and press <strong>P</strong>, <strong>M</strong>, <strong>U</strong>, <strong>O</strong>, or <strong>Backspace</strong>.
+      </p>
+    </section>
+
+    <!-- ==========================================
+         VIEW 2: LEAVE REGISTER ENTRY
+         ========================================== -->
+    <section id="tab-register" class="view-panel">
+      <div class="toolbar-card">
+        <div class="toolbar-left">
+          <div class="search-input">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchRegInput" placeholder="Filter employee or designation...">
+          </div>
+        </div>
+        <div class="view-legend">
+          <span style="font-size: 0.8rem; color: var(--text-muted);">
+            Enter monthly day-counts for Paid, Medical, Other, and Unpaid leave. Totals and accruals update automatically.
+          </span>
+        </div>
+      </div>
+
+      <div class="table-scroll-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="sticky-col-1" rowspan="2">ID</th>
+              <th class="sticky-col-2" rowspan="2">Employee Name</th>
+              <th class="sticky-col-3" rowspan="2">Designation</th>
+              <th rowspan="2" style="min-width: 110px;">Joining Date</th>
+              <th colspan="4" class="month-group-header">January</th>
+              <th colspan="4" class="month-group-header">February</th>
+              <th colspan="4" class="month-group-header">March</th>
+              <th colspan="4" class="month-group-header">April</th>
+              <th colspan="4" class="month-group-header">May</th>
+              <th colspan="4" class="month-group-header">June</th>
+              <th colspan="4" class="month-group-header">July</th>
+              <th colspan="4" class="month-group-header">August</th>
+              <th colspan="4" class="month-group-header">September</th>
+              <th colspan="4" class="month-group-header">October</th>
+              <th colspan="4" class="month-group-header">November</th>
+              <th colspan="4" class="month-group-header">December</th>
+              <th rowspan="2" style="min-width: 75px; background: #e0f2fe; color: #0369a1;">Annual Entitlement</th>
+            </tr>
+            <tr>
+              <!-- 12 Months Subheaders -->
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+              <th style="font-size: 0.75rem;">P</th><th style="font-size: 0.75rem;">M</th><th style="font-size: 0.75rem;">O</th><th style="font-size: 0.75rem;">U</th>
+            </tr>
+          </thead>
+          <tbody id="regTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 3: MASTER SHEET (CALENDAR SUMMARY)
+         ========================================== -->
+    <section id="tab-master1" class="view-panel">
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-label">Active Staff</span>
+          <span class="kpi-value" id="kpiMs1Employees">0</span>
+          <span class="kpi-sub">Employees on Calendar</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Paid Leave Days</span>
+          <span class="kpi-value" style="color: #15803d;" id="kpiMs1Paid">0</span>
+          <span class="kpi-sub">Excluding Friday holidays</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Medical Leave Days</span>
+          <span class="kpi-value" style="color: #b45309;" id="kpiMs1Med">0</span>
+          <span class="kpi-sub">Excluding Friday holidays</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Friday Holiday Leaves</span>
+          <span class="kpi-value" style="color: #64748b;" id="kpiMs1FriExcluded">0</span>
+          <span class="kpi-sub">Marked on Fridays (Excluded)</span>
+        </div>
+      </div>
+
+      <div class="toolbar-card">
+        <div class="toolbar-left">
+          <div class="search-input">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchMs1Input" placeholder="Filter summary...">
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-excel" onclick="exportMasterSheet1Excel()" title="Export Master Sheet 1 to Excel">
+            <span>📗</span> <span>Export to Excel</span>
+          </button>
+          <button class="btn btn-secondary" onclick="exportMasterSheet1Csv()">
+            <span>📥</span> <span>CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-scroll-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee ID</th>
+              <th>Employee Name</th>
+              <th>Designation</th>
+              <th style="text-align: right; background-color: var(--leave-p-bg); color: var(--leave-p-text);">Total P (Paid)</th>
+              <th style="text-align: right; background-color: var(--leave-m-bg); color: var(--leave-m-text);">Total M (Medical)</th>
+              <th style="text-align: right; background-color: var(--leave-u-bg); color: var(--leave-u-text);">Total U (Unpaid)</th>
+              <th style="text-align: right; background-color: var(--leave-o-bg); color: var(--leave-o-text);">Total O (Other)</th>
+              <th style="text-align: right;">Total (Official)</th>
+              <th style="text-align: right;">Friday Marks (Excluded)</th>
+            </tr>
+          </thead>
+          <tbody id="ms1TableBody"></tbody>
+        </table>
+      </div>
+      <p style="margin-top: 0.5rem; font-size: 0.775rem; color: var(--text-muted);">
+        * Business Rule: Per Section 2.1 of build spec, Kuwait company holiday (Friday) marks are strictly excluded from Total P, M, U, and O.
+      </p>
+    </section>
+
+    <!-- ==========================================
+         VIEW 4: MASTER SHEET 2 (BALANCES & ACCRUALS)
+         ========================================== -->
+    <section id="tab-master2" class="view-panel">
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-label">Total Leave Taken</span>
+          <span class="kpi-value" id="kpiMs2TotalLeave">0</span>
+          <span class="kpi-sub">Paid + Med + Unp + Other</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Total Annual Entitlements</span>
+          <span class="kpi-value" id="kpiMs2Entitlement">0</span>
+          <span class="kpi-sub">Allocated paid days</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Paid Leave Remaining</span>
+          <span class="kpi-value" style="color: #15803d;" id="kpiMs2Remaining">0</span>
+          <span class="kpi-sub">Entitlement - Paid Taken</span>
+        </div>
+      </div>
+
+      <div class="toolbar-card">
+        <div class="toolbar-left">
+          <div class="search-input">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchMs2Input" placeholder="Filter balances...">
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-excel" onclick="exportMasterSheet2Excel()" title="Export Master Sheet 2 to Excel">
+            <span>📗</span> <span>Export to Excel</span>
+          </button>
+          <button class="btn btn-secondary" onclick="exportMasterSheet2Csv()">
+            <span>📥</span> <span>CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-scroll-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee Name</th>
+              <th>Employee ID</th>
+              <th>Designation</th>
+              <th>Joining Date</th>
+              <th style="text-align: right;">Total Paid Taken</th>
+              <th style="text-align: right;">Total Unpaid Taken</th>
+              <th style="text-align: right;">Total Medical Taken</th>
+              <th style="text-align: right;">Other Leave Total</th>
+              <th style="text-align: right; background: #f1f5f9;">TOTAL (All Leave)</th>
+              <th style="text-align: right;">Annual Paid Entitlement</th>
+              <th style="text-align: right; color: #166534;">Paid Leave Remaining</th>
+              <th style="text-align: right; color: #1e3a8a;">Accrued Leave Till Date</th>
+              <th style="text-align: right;">Balance vs Accrued</th>
+            </tr>
+          </thead>
+          <tbody id="ms2TableBody"></tbody>
+        </table>
+      </div>
+      <p style="margin-top: 0.5rem; font-size: 0.775rem; color: var(--text-muted);">
+        * Formula: Accrued Leave Till Date = <code>max(0, (Annual_Paid_Entitlement / 12) * months_elapsed)</code>. Accumulates indefinitely across years without January reset.
+      </p>
+    </section>
+
+    <!-- ==========================================
+         VIEW 5: INSTRUCTIONS & RULES
+         ========================================== -->
+    <section id="tab-instructions" class="view-panel">
+      <div class="guide-container">
+        <div class="guide-card">
+          <h2><span>📖</span> Leave Record — User Guide & Business Rules</h2>
+          <p>
+            This application is the converted system for the Kuwait office leave management workbook (<code>LEAVE_RECORD.xlsx</code>).
+            All calculations are live and automatic.
+          </p>
+
+          <h3>1. Calendar Sheet Data Entry</h3>
+          <ul>
+            <li><strong>Employee Name</strong> is required (Employee ID and Designation are optional).</li>
+            <li>Click on any date to mark a leave type, or focus and press:</li>
+          </ul>
+          <div style="display: flex; gap: 0.5rem; margin: 0.5rem 0;">
+            <span class="legend-chip chip-p"><strong>P</strong> Paid Leave</span>
+            <span class="legend-chip chip-m"><strong>M</strong> Medical Leave</span>
+            <span class="legend-chip chip-u"><strong>U</strong> Unpaid Leave</span>
+            <span class="legend-chip chip-o"><strong>O</strong> Other Leave</span>
+          </div>
+          <p>Leave blank for a normal working day.</p>
+
+          <div class="alert-banner">
+            <strong>Kuwait Company Holiday (Friday Rule):</strong><br>
+            Friday is the company holiday. Leave codes marked on a Friday are visually shaded and are <strong>strictly excluded from all official leave totals</strong> in Master Sheet 1.
+          </div>
+
+          <h3>2. Leave Register Sheet Data Entry</h3>
+          <ul>
+            <li><strong>Columns A-D:</strong> Employee ID, Employee Name, Designation, and Joining Date.</li>
+            <li><strong>Monthly Breakdown (Jan - Dec):</strong> Enter the number of days taken for Paid, Medical, Other, and Unpaid leave each month.</li>
+            <li><strong>Annual Paid Leave Entitlement:</strong> Enter the total allocated paid leave days per year (e.g. 30, 45).</li>
+            <li>All remaining totals, balances, and accrued figures calculate automatically.</li>
+          </ul>
+
+          <h3>3. Accrued Leave & Balance vs Accrued Formula</h3>
+          <p>Leave accrues monthly at a constant rate starting from the employee's Joining Date and accumulates indefinitely across years (never reset each January):</p>
+          <div class="code-box">
+months_elapsed = (current_year - joining_year) * 12 + (current_month - joining_month) + 1
+Accrued_Leave_Till_Date = max(0, (Annual_Paid_Entitlement / 12) * months_elapsed)
+Balance_vs_Accrued = Accrued_Leave_Till_Date - Total_Paid_Taken
+          </div>
+
+          <h3>4. Master Sheets & Admin Protection</h3>
+          <p>
+            Master Sheet (Calendar Summary) and Master Sheet 2 (Balances & Accruals) are read-only summary views to preserve data integrity.
+            To unlock administrator controls or edit sensitive configurations, click the <strong>Read-Only Views</strong> button in the top header and enter the authorized administrator password provided by management.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Admin Password Modal -->
+  <div id="adminModal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><span>🔒</span> Admin Authentication</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          Enter the administrator password to unlock master sheet controls.
+        </p>
+        <div class="form-group">
+          <label for="adminPasswordInput">Password</label>
+          <input type="password" id="adminPasswordInput" class="form-control" placeholder="Enter administrator password">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-cancel">Cancel</button>
+        <button id="adminSubmitBtn" class="btn btn-primary">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Employee Modal -->
+  <div id="addEmployeeModal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <form id="addEmployeeForm">
+        <div class="modal-header">
+          <h3><span>👤</span> Add New Employee</h3>
+          <button type="button" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="newEmpName">Employee Name <span style="color:red;">*</span></label>
+            <input type="text" id="newEmpName" class="form-control" placeholder="Full Name" required>
+          </div>
+          <div class="form-group">
+            <label for="newEmpId">Employee ID (Optional)</label>
+            <input type="text" id="newEmpId" class="form-control" placeholder="e.g. NEST-45">
+          </div>
+          <div class="form-group">
+            <label for="newEmpDesig">Designation</label>
+            <input type="text" id="newEmpDesig" class="form-control" placeholder="e.g. SAFETY OFFICER">
+          </div>
+          <div class="form-group">
+            <label for="newEmpJoiningDate">Joining Date</label>
+            <input type="date" id="newEmpJoiningDate" class="form-control" value="2026-01-01">
+          </div>
+          <div class="form-group">
+            <label for="newEmpEntitlement">Annual Paid Leave Entitlement (days)</label>
+            <input type="number" id="newEmpEntitlement" class="form-control" value="30" min="0" step="1">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Employee</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/xlsx.full.min.js"></script>
+  <script src="js/models.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
